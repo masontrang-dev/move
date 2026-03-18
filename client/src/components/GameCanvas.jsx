@@ -17,6 +17,8 @@ const GameCanvas = ({ onGameEnd }) => {
   const [obstaclesEnabled, setObstaclesEnabled] = useState(true);
   const [difficulty, setDifficulty] = useState("medium");
   const [sessionDuration, setSessionDuration] = useState(180);
+  const [gameMode, setGameMode] = useState("targets");
+  const [isCalibrating, setIsCalibrating] = useState(false);
 
   useEffect(() => {
     initializeGame();
@@ -85,6 +87,7 @@ const GameCanvas = ({ onGameEnd }) => {
         sessionDuration: sessionDuration * 1000,
         difficulty: difficulty,
         onSessionEnd: handleSessionEnd,
+        gameMode: gameMode,
       };
       const gameLoop = new GameLoop(canvas, gameConfig);
       await gameLoop.init();
@@ -164,8 +167,29 @@ const GameCanvas = ({ onGameEnd }) => {
       gameLoopRef.current.difficulty = difficulty;
       gameLoopRef.current.sessionDuration = sessionDuration * 1000;
       gameLoopRef.current.onSessionEnd = handleSessionEnd;
-      gameLoopRef.current.start();
-      setIsPlaying(true);
+      gameLoopRef.current.gameMode = gameMode;
+
+      if (gameMode === "shapeMatching") {
+        setIsCalibrating(true);
+        gameLoopRef.current.startCalibration();
+        gameLoopRef.current.start();
+        setIsPlaying(true);
+      } else {
+        gameLoopRef.current.start();
+        setIsPlaying(true);
+      }
+    }
+  };
+
+  const handleFinishCalibration = () => {
+    if (gameLoopRef.current) {
+      const success = gameLoopRef.current.finishCalibration();
+      if (success) {
+        setIsCalibrating(false);
+      } else {
+        alert("Calibration failed. Please try again and hold a T-Pose.");
+        gameLoopRef.current.startCalibration();
+      }
     }
   };
 
@@ -284,12 +308,20 @@ const GameCanvas = ({ onGameEnd }) => {
       >
         {!isPlaying && (
           <>
-            <div style={{ display: "flex", gap: "2rem", marginBottom: "1rem" }}>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "1rem",
+                marginBottom: "1rem",
+              }}
+            >
               <div
                 style={{
                   display: "flex",
                   flexDirection: "column",
                   gap: "0.5rem",
+                  alignItems: "center",
                 }}
               >
                 <label
@@ -299,94 +331,150 @@ const GameCanvas = ({ onGameEnd }) => {
                     fontWeight: "bold",
                   }}
                 >
-                  Difficulty:
+                  Game Mode:
                 </label>
                 <div style={{ display: "flex", gap: "0.5rem" }}>
-                  {["easy", "medium", "hard"].map((level) => (
-                    <button
-                      key={level}
-                      onClick={() => setDifficulty(level)}
-                      style={{
-                        padding: "0.5rem 1.5rem",
-                        fontSize: "1rem",
-                        backgroundColor:
-                          difficulty === level ? "#4CAF50" : "#666",
-                        color: "white",
-                        border: "none",
-                        borderRadius: "8px",
-                        cursor: "pointer",
-                        fontWeight: "bold",
-                        textTransform: "capitalize",
-                      }}
-                    >
-                      {level}
-                    </button>
-                  ))}
+                  <button
+                    onClick={() => setGameMode("targets")}
+                    style={{
+                      padding: "0.75rem 1.5rem",
+                      fontSize: "1rem",
+                      backgroundColor:
+                        gameMode === "targets" ? "#4CAF50" : "#666",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "8px",
+                      cursor: "pointer",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    🎯 Target Punching
+                  </button>
+                  <button
+                    onClick={() => setGameMode("shapeMatching")}
+                    style={{
+                      padding: "0.75rem 1.5rem",
+                      fontSize: "1rem",
+                      backgroundColor:
+                        gameMode === "shapeMatching" ? "#4CAF50" : "#666",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "8px",
+                      cursor: "pointer",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    🤸 Shape Matching
+                  </button>
                 </div>
               </div>
 
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "0.5rem",
-                }}
-              >
-                <label
+              <div style={{ display: "flex", gap: "2rem" }}>
+                <div
                   style={{
-                    color: "#fff",
-                    fontSize: "1.1rem",
-                    fontWeight: "bold",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "0.5rem",
                   }}
                 >
-                  Session Duration:
-                </label>
-                <div style={{ display: "flex", gap: "0.5rem" }}>
-                  {[60, 180, 300].map((duration) => (
-                    <button
-                      key={duration}
-                      onClick={() => setSessionDuration(duration)}
-                      style={{
-                        padding: "0.5rem 1.5rem",
-                        fontSize: "1rem",
-                        backgroundColor:
-                          sessionDuration === duration ? "#4CAF50" : "#666",
-                        color: "white",
-                        border: "none",
-                        borderRadius: "8px",
-                        cursor: "pointer",
-                        fontWeight: "bold",
-                      }}
-                    >
-                      {duration / 60} min
-                    </button>
-                  ))}
+                  <label
+                    style={{
+                      color: "#fff",
+                      fontSize: "1.1rem",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    Difficulty:
+                  </label>
+                  <div style={{ display: "flex", gap: "0.5rem" }}>
+                    {["easy", "medium", "hard"].map((level) => (
+                      <button
+                        key={level}
+                        onClick={() => setDifficulty(level)}
+                        style={{
+                          padding: "0.5rem 1.5rem",
+                          fontSize: "1rem",
+                          backgroundColor:
+                            difficulty === level ? "#4CAF50" : "#666",
+                          color: "white",
+                          border: "none",
+                          borderRadius: "8px",
+                          cursor: "pointer",
+                          fontWeight: "bold",
+                          textTransform: "capitalize",
+                        }}
+                      >
+                        {level}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "0.5rem",
+                  }}
+                >
+                  <label
+                    style={{
+                      color: "#fff",
+                      fontSize: "1.1rem",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    Session Duration:
+                  </label>
+                  <div style={{ display: "flex", gap: "0.5rem" }}>
+                    {[60, 180, 300].map((duration) => (
+                      <button
+                        key={duration}
+                        onClick={() => setSessionDuration(duration)}
+                        style={{
+                          padding: "0.5rem 1.5rem",
+                          fontSize: "1rem",
+                          backgroundColor:
+                            sessionDuration === duration ? "#4CAF50" : "#666",
+                          color: "white",
+                          border: "none",
+                          borderRadius: "8px",
+                          cursor: "pointer",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        {duration / 60} min
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
 
-            <label
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "0.5rem",
-                color: "#fff",
-                fontSize: "1.1rem",
-                cursor: "pointer",
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={obstaclesEnabled}
-                onChange={(e) => setObstaclesEnabled(e.target.checked)}
+            {gameMode === "targets" && (
+              <label
                 style={{
-                  width: "20px",
-                  height: "20px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  color: "#fff",
+                  fontSize: "1.1rem",
                   cursor: "pointer",
                 }}
-              />
-              Enable Obstacles (Phase 3)
-            </label>
+              >
+                <input
+                  type="checkbox"
+                  checked={obstaclesEnabled}
+                  onChange={(e) => setObstaclesEnabled(e.target.checked)}
+                  style={{
+                    width: "20px",
+                    height: "20px",
+                    cursor: "pointer",
+                  }}
+                />
+                Enable Obstacles (Phase 3)
+              </label>
+            )}
           </>
         )}
 
@@ -406,6 +494,22 @@ const GameCanvas = ({ onGameEnd }) => {
               }}
             >
               Start Game
+            </button>
+          ) : isCalibrating ? (
+            <button
+              onClick={handleFinishCalibration}
+              style={{
+                padding: "1rem 2rem",
+                fontSize: "1.2rem",
+                backgroundColor: "#4CAF50",
+                color: "white",
+                border: "none",
+                borderRadius: "8px",
+                cursor: "pointer",
+                fontWeight: "bold",
+              }}
+            >
+              Finish Calibration
             </button>
           ) : (
             <>
@@ -455,16 +559,37 @@ const GameCanvas = ({ onGameEnd }) => {
         }}
       >
         <h3>How to Play:</h3>
-        <ul style={{ textAlign: "left", lineHeight: "1.8" }}>
-          <li>🎯 Punch the cyan targets with your hands</li>
-          <li>⚡ Move your wrists fast enough to register hits</li>
-          <li>🔥 Build combos by hitting consecutive targets</li>
-          <li>💯 Hit the center of targets for bonus points</li>
-          <li>⏰ Complete the session before time runs out</li>
-          <li>🚧 Dodge obstacles to keep your health</li>
-          <li>⏸️ Press ESC to pause/resume the game</li>
-          <li>📈 Difficulty increases as time progresses</li>
-        </ul>
+        {gameMode === "targets" ? (
+          <ul style={{ textAlign: "left", lineHeight: "1.8" }}>
+            <li>🎯 Punch the cyan targets with your hands</li>
+            <li>⚡ Move your wrists fast enough to register hits</li>
+            <li>🔥 Build combos by hitting consecutive targets</li>
+            <li>💯 Hit the center of targets for bonus points</li>
+            <li>⏰ Complete the session before time runs out</li>
+            <li>🚧 Dodge obstacles to keep your health</li>
+            <li>⏸️ Press ESC to pause/resume the game</li>
+            <li>📈 Difficulty increases as time progresses</li>
+          </ul>
+        ) : (
+          <ul style={{ textAlign: "left", lineHeight: "1.8" }}>
+            <li>🤸 Match your body position to the displayed shape</li>
+            <li>
+              🎯 Position all 6 keypoints (wrists, elbows, shoulders) in the
+              target zones
+            </li>
+            <li>⏱️ Hold the correct position for 1.5 seconds to score</li>
+            <li>
+              ✅ Green circles = correctly positioned, Yellow = needs adjustment
+            </li>
+            <li>💯 Perfect matches earn bonus points</li>
+            <li>⏰ Complete as many shapes as possible before time runs out</li>
+            <li>⏸️ Press ESC to pause/resume the game</li>
+            <li>
+              📈 Shapes get harder and tolerance zones shrink as difficulty
+              increases
+            </li>
+          </ul>
+        )}
       </div>
     </div>
   );

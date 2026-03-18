@@ -78,19 +78,19 @@ Get the project scaffolded and environment working before writing any game code.
 
 ---
 
-## Phase 4.1 — Shape Matching Game Mode (Week 11.5)
+## Phase 4.1 — Shape Matching Game Mode (Week 11.5) ✅
 
 **Goal:** Add a "Hole in the Wall" style game mode where players match body shapes using upper body keypoints.
 
-- [ ] Create shape generator using 6 upper body keypoints (left/right wrist, elbow, shoulder)
-- [ ] Design shape templates with varying difficulty (easy poses to complex poses)
-- [ ] Implement shape matching detection (compare player pose to target shape)
-- [ ] Add game mode selector UI (Target Punching vs Shape Matching)
-- [ ] Create shape display renderer showing target positions for each keypoint
-- [ ] Add scoring system based on matching accuracy (tolerance zones per keypoint)
-- [ ] Visual feedback: show which keypoints are correctly positioned
-- [ ] Integrate with existing session timer and difficulty system
-- [ ] Shape progression: new shape appears after successful match or timeout
+- [x] Create shape generator using 6 upper body keypoints (left/right wrist, elbow, shoulder)
+- [x] Design shape templates with varying difficulty (easy poses to complex poses)
+- [x] Implement shape matching detection (compare player pose to target shape)
+- [x] Add game mode selector UI (Target Punching vs Shape Matching)
+- [x] Create shape display renderer showing target positions for each keypoint
+- [x] Add scoring system based on matching accuracy (tolerance zones per keypoint)
+- [x] Visual feedback: show which keypoints are correctly positioned
+- [x] Integrate with existing session timer and difficulty system
+- [x] Shape progression: new shape appears after successful match or timeout
 
 **Done when:** You can select "Shape Matching" mode and play a full session matching body shapes.
 

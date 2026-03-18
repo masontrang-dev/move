@@ -8,6 +8,9 @@ import {
   checkObstacleCollision,
   getDistanceFromCenter,
 } from "./collision.js";
+import { ShapeGenerator } from "./shapeTemplates.js";
+import ShapeMatchingDetector from "./shapeMatching.js";
+import CalibrationSystem from "./calibration.js";
 
 class GameLoop {
   constructor(canvas, config = {}) {
@@ -17,6 +20,12 @@ class GameLoop {
     this.obstacleManager = new ObstacleManager(canvas.width, canvas.height);
     this.healthManager = new HealthManager();
     this.audioManager = new AudioManager();
+    this.shapeGenerator = new ShapeGenerator();
+    this.shapeMatchingDetector = new ShapeMatchingDetector(
+      canvas.width,
+      canvas.height,
+    );
+    this.calibrationSystem = new CalibrationSystem(canvas.width, canvas.height);
 
     this.targets = [];
     this.score = 0;
@@ -43,6 +52,15 @@ class GameLoop {
     this.difficulty = config.difficulty || "medium";
     this.difficultyMultiplier = 1.0;
     this.onSessionEnd = config.onSessionEnd || null;
+
+    this.gameMode = config.gameMode || "targets";
+    this.currentShape = null;
+    this.currentMatchResult = null;
+    this.shapesCompleted = 0;
+    this.shapeHoldTime = 0;
+    this.shapeHoldRequired = 1000;
+    this.isCalibrating = false;
+    this.calibrationComplete = false;
   }
 
   setObstaclesEnabled(enabled) {
@@ -143,6 +161,15 @@ class GameLoop {
     this.pausedTime = 0;
     this.lastPauseTime = 0;
     this.difficultyMultiplier = 1.0;
+    this.currentShape = null;
+    this.currentMatchResult = null;
+    this.shapesCompleted = 0;
+    this.shapeHoldTime = 0;
+    this.isCalibrating = false;
+    this.calibrationComplete = false;
+    if (this.calibrationSystem) {
+      this.calibrationSystem.reset();
+    }
   }
 
   loop(timestamp) {
@@ -186,32 +213,136 @@ class GameLoop {
     this.updateDifficulty();
     this.healthManager.update(currentTime);
 
-    this.spawner.setDifficultyMultiplier(this.difficultyMultiplier);
-    if (this.spawner.shouldSpawn(currentTime)) {
-      this.targets.push(this.spawner.createTarget());
-    }
-
-    if (this.obstaclesEnabled) {
-      this.obstacleManager.setDifficultyMultiplier(this.difficultyMultiplier);
-      this.obstacleManager.spawn(currentTime);
-      this.obstacleManager.update(deltaTime);
-    }
-
-    this.targets.forEach((target) => {
-      target.x += target.vx * (deltaTime / 1000);
-      target.y += target.vy * (deltaTime / 1000);
-    });
-
-    this.checkCollisions();
-
-    this.targets = this.targets.filter((target) => {
-      if (this.spawner.isOffScreen(target)) {
-        this.audioManager.playMiss();
-        this.resetCombo();
-        return false;
+    if (this.gameMode === "shapeMatching") {
+      this.updateShapeMatching(deltaTime, currentTime);
+    } else {
+      this.spawner.setDifficultyMultiplier(this.difficultyMultiplier);
+      if (this.spawner.shouldSpawn(currentTime)) {
+        this.targets.push(this.spawner.createTarget());
       }
-      return true;
-    });
+
+      if (this.obstaclesEnabled) {
+        this.obstacleManager.setDifficultyMultiplier(this.difficultyMultiplier);
+        this.obstacleManager.spawn(currentTime);
+        this.obstacleManager.update(deltaTime);
+      }
+
+      this.targets.forEach((target) => {
+        target.x += target.vx * (deltaTime / 1000);
+        target.y += target.vy * (deltaTime / 1000);
+      });
+
+      this.checkCollisions();
+
+      this.targets = this.targets.filter((target) => {
+        if (this.spawner.isOffScreen(target)) {
+          this.audioManager.playMiss();
+          this.resetCombo();
+          return false;
+        }
+        return true;
+      });
+    }
+  }
+
+  updateShapeMatching(deltaTime, currentTime) {
+    if (this.isCalibrating) {
+      this.calibrationSystem.addSample(this.poseData);
+      return;
+    }
+
+    if (!this.currentShape) {
+      const difficultyLevel =
+        this.difficulty === "easy"
+          ? "easy"
+          : this.difficulty === "hard"
+            ? "hard"
+            : "medium";
+      let shape = this.shapeGenerator.generateRandomShape(difficultyLevel);
+
+      if (this.calibrationComplete && this.calibrationSystem.isComplete()) {
+        shape = this.calibrationSystem.scaleShapeToUser(shape);
+      }
+
+      this.currentShape = shape;
+      this.shapeHoldTime = 0;
+    }
+
+    this.shapeMatchingDetector.setDifficultyMultiplier(
+      this.difficultyMultiplier,
+    );
+    this.currentMatchResult = this.shapeMatchingDetector.matchShape(
+      this.poseData,
+      this.currentShape,
+    );
+
+    if (this.currentMatchResult.isMatch) {
+      this.shapeHoldTime += deltaTime;
+
+      if (this.shapeHoldTime >= this.shapeHoldRequired) {
+        const timeBonus = Math.max(
+          0,
+          500 - Math.floor(this.shapeHoldTime / 100),
+        );
+        const points = this.shapeMatchingDetector.calculateScore(
+          this.currentMatchResult,
+          timeBonus,
+        );
+        this.score += points;
+        this.shapesCompleted++;
+
+        this.audioManager.playHit();
+        this.renderer.triggerFlash();
+        this.renderer.addScorePopup(
+          this.canvas.width / 2,
+          this.canvas.height / 2,
+          points,
+        );
+
+        let newShape = null;
+        if (this.calibrationComplete && this.calibrationSystem.isComplete()) {
+          const difficultyLevel =
+            this.difficulty === "easy"
+              ? "easy"
+              : this.difficulty === "hard"
+                ? "hard"
+                : "medium";
+          const rawShape =
+            this.shapeGenerator.generateRandomShape(difficultyLevel);
+          newShape = this.calibrationSystem.scaleShapeToUser(rawShape);
+        }
+
+        this.currentShape = newShape;
+        this.currentMatchResult = null;
+        this.shapeHoldTime = 0;
+      }
+    } else {
+      this.shapeHoldTime = 0;
+    }
+  }
+
+  startCalibration() {
+    this.isCalibrating = true;
+    this.calibrationComplete = false;
+    this.calibrationSystem.reset();
+  }
+
+  finishCalibration() {
+    const success = this.calibrationSystem.finishCalibration();
+    this.isCalibrating = false;
+    this.calibrationComplete = success;
+    return success;
+  }
+
+  getCalibrationProgress() {
+    return (
+      this.calibrationSystem.getSampleCount() /
+      this.calibrationSystem.maxSamples
+    );
+  }
+
+  isCalibrationMode() {
+    return this.isCalibrating;
   }
 
   updateDifficulty() {
@@ -311,18 +442,146 @@ class GameLoop {
 
   render(deltaTime) {
     const timeRemaining = Math.max(0, this.sessionDuration - this.elapsedTime);
-    this.renderer.render(
-      this.targets,
-      this.obstacleManager.getObstacles(),
-      this.poseData,
-      this.score,
-      this.combo,
-      this.healthManager.getHealth(),
-      this.healthManager.getMaxHealth(),
-      deltaTime,
-      timeRemaining,
-      this.isPaused,
+
+    if (this.gameMode === "shapeMatching") {
+      this.renderShapeMatching(deltaTime, timeRemaining);
+    } else {
+      this.renderer.render(
+        this.targets,
+        this.obstacleManager.getObstacles(),
+        this.poseData,
+        this.score,
+        this.combo,
+        this.healthManager.getHealth(),
+        this.healthManager.getMaxHealth(),
+        deltaTime,
+        timeRemaining,
+        this.isPaused,
+      );
+    }
+  }
+
+  renderShapeMatching(deltaTime, timeRemaining) {
+    this.renderer.clear();
+
+    if (this.isCalibrating) {
+      this.renderer.drawSkeleton(this.poseData);
+      this.drawCalibrationOverlay();
+    } else {
+      if (this.currentShape) {
+        this.renderer.drawShapeConnections(
+          this.currentShape,
+          this.poseData,
+          this.currentMatchResult,
+        );
+        this.renderer.drawShapeTargets(
+          this.currentShape,
+          this.currentMatchResult,
+        );
+      }
+
+      this.renderer.drawSkeleton(this.poseData);
+
+      if (this.currentShape) {
+        this.renderer.drawShapeInfo(this.currentShape, this.currentMatchResult);
+      }
+
+      this.renderer.drawHUD(
+        this.score,
+        this.combo,
+        this.healthManager.getHealth(),
+        this.healthManager.getMaxHealth(),
+        timeRemaining,
+      );
+
+      if (this.currentMatchResult && this.currentMatchResult.isMatch) {
+        const holdProgress = this.shapeHoldTime / this.shapeHoldRequired;
+        this.drawHoldProgress(holdProgress);
+      }
+
+      this.renderer.drawFlash();
+      this.renderer.updateAndDrawScorePopups(deltaTime);
+
+      if (this.isPaused) {
+        this.renderer.drawPauseOverlay();
+      }
+    }
+  }
+
+  drawCalibrationOverlay() {
+    const ctx = this.renderer.ctx;
+    const progress = this.getCalibrationProgress();
+
+    ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
+    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+    ctx.fillStyle = "#FFFFFF";
+    ctx.font = "bold 48px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText(
+      "CALIBRATION",
+      this.canvas.width / 2,
+      this.canvas.height / 2 - 100,
     );
+
+    ctx.font = "24px Arial";
+    ctx.fillStyle = "#AAAAAA";
+    ctx.fillText(
+      "Stand in a T-Pose with arms straight out",
+      this.canvas.width / 2,
+      this.canvas.height / 2 - 50,
+    );
+    ctx.fillText(
+      "Hold still while we measure your dimensions",
+      this.canvas.width / 2,
+      this.canvas.height / 2 - 20,
+    );
+
+    const barWidth = 400;
+    const barHeight = 40;
+    const barX = this.canvas.width / 2 - barWidth / 2;
+    const barY = this.canvas.height / 2 + 40;
+
+    ctx.fillStyle = "#333";
+    ctx.fillRect(barX, barY, barWidth, barHeight);
+
+    ctx.fillStyle = "#4CAF50";
+    ctx.fillRect(barX, barY, barWidth * progress, barHeight);
+
+    ctx.strokeStyle = "#FFF";
+    ctx.lineWidth = 3;
+    ctx.strokeRect(barX, barY, barWidth, barHeight);
+
+    ctx.fillStyle = "#FFFFFF";
+    ctx.font = "bold 20px Arial";
+    const percentage = Math.floor(progress * 100);
+    ctx.fillText(`${percentage}%`, this.canvas.width / 2, barY + 27);
+  }
+
+  drawHoldProgress(progress) {
+    const ctx = this.renderer.ctx;
+    const barWidth = 300;
+    const barHeight = 30;
+    const x = this.canvas.width / 2 - barWidth / 2;
+    const y = this.canvas.height - 100;
+
+    ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+    ctx.fillRect(x - 5, y - 5, barWidth + 10, barHeight + 10);
+
+    ctx.fillStyle = "#333";
+    ctx.fillRect(x, y, barWidth, barHeight);
+
+    ctx.fillStyle = "#00FF00";
+    ctx.fillRect(x, y, barWidth * progress, barHeight);
+
+    ctx.strokeStyle = "#FFF";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, barWidth, barHeight);
+
+    ctx.fillStyle = "#FFF";
+    ctx.font = "bold 16px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText("HOLD POSITION", this.canvas.width / 2, y - 15);
   }
 
   getScore() {
@@ -336,6 +595,8 @@ class GameLoop {
       difficulty: this.difficulty,
       maxCombo: this.consecutiveHits,
       timeRemaining: Math.max(0, this.sessionDuration - this.elapsedTime),
+      gameMode: this.gameMode,
+      shapesCompleted: this.shapesCompleted,
     };
   }
 
@@ -345,6 +606,10 @@ class GameLoop {
 
   getIsPaused() {
     return this.isPaused;
+  }
+
+  getCalibrationSystem() {
+    return this.calibrationSystem;
   }
 }
 

@@ -162,6 +162,111 @@ class Renderer {
     );
   }
 
+  drawShapeTargets(targetShape, matchResult) {
+    if (!targetShape || !targetShape.positions) return;
+
+    const keypointNames = [
+      "left_wrist",
+      "left_elbow",
+      "left_shoulder",
+      "right_shoulder",
+      "right_elbow",
+      "right_wrist",
+    ];
+
+    keypointNames.forEach((keypointName) => {
+      const targetPos = targetShape.positions[keypointName];
+      if (!targetPos) return;
+
+      const x = targetPos.x * this.canvas.width;
+      const y = targetPos.y * this.canvas.height;
+      const radius = matchResult?.toleranceRadius || 80;
+
+      const detail = matchResult?.details?.[keypointName];
+      const isMatched = detail?.matched || false;
+
+      this.ctx.beginPath();
+      this.ctx.arc(x, y, radius, 0, 2 * Math.PI);
+      this.ctx.fillStyle = isMatched
+        ? "rgba(0, 255, 0, 0.2)"
+        : "rgba(255, 255, 0, 0.2)";
+      this.ctx.fill();
+      this.ctx.strokeStyle = isMatched ? "#00FF00" : "#FFFF00";
+      this.ctx.lineWidth = 3;
+      this.ctx.stroke();
+
+      this.ctx.beginPath();
+      this.ctx.arc(x, y, 8, 0, 2 * Math.PI);
+      this.ctx.fillStyle = isMatched ? "#00FF00" : "#FFFF00";
+      this.ctx.fill();
+
+      this.ctx.fillStyle = "#FFFFFF";
+      this.ctx.font = "bold 14px Arial";
+      this.ctx.textAlign = "center";
+      const label = keypointName.replace("_", " ").toUpperCase();
+      this.ctx.fillText(label, x, y - radius - 10);
+    });
+  }
+
+  drawShapeInfo(targetShape, matchResult) {
+    if (!targetShape) return;
+
+    this.ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+    this.ctx.fillRect(this.canvas.width / 2 - 200, 20, 400, 100);
+
+    this.ctx.fillStyle = "#FFFFFF";
+    this.ctx.font = "bold 28px Arial";
+    this.ctx.textAlign = "center";
+    this.ctx.fillText(targetShape.name, this.canvas.width / 2, 50);
+
+    this.ctx.font = "18px Arial";
+    this.ctx.fillStyle = "#AAAAAA";
+    this.ctx.fillText(targetShape.description, this.canvas.width / 2, 75);
+
+    if (matchResult) {
+      const percentage = Math.floor(matchResult.accuracy * 100);
+      this.ctx.fillStyle = matchResult.isMatch ? "#00FF00" : "#FFFF00";
+      this.ctx.fillText(
+        `${matchResult.matchedKeypoints}/${matchResult.totalKeypoints} matched (${percentage}%)`,
+        this.canvas.width / 2,
+        100,
+      );
+    }
+  }
+
+  drawShapeConnections(targetShape, keypoints, matchResult) {
+    if (!targetShape || !keypoints) return;
+
+    const connections = [
+      ["left_shoulder", "left_elbow"],
+      ["left_elbow", "left_wrist"],
+      ["right_shoulder", "right_elbow"],
+      ["right_elbow", "right_wrist"],
+      ["left_shoulder", "right_shoulder"],
+    ];
+
+    connections.forEach(([startName, endName]) => {
+      const startTarget = targetShape.positions[startName];
+      const endTarget = targetShape.positions[endName];
+
+      if (startTarget && endTarget) {
+        const startX = startTarget.x * this.canvas.width;
+        const startY = startTarget.y * this.canvas.height;
+        const endX = endTarget.x * this.canvas.width;
+        const endY = endTarget.y * this.canvas.height;
+
+        this.ctx.beginPath();
+        this.ctx.moveTo(startX, startY);
+        this.ctx.lineTo(endX, endY);
+        this.ctx.strokeStyle = "rgba(255, 255, 0, 0.5)";
+        this.ctx.lineWidth = 2;
+        this.ctx.setLineDash([5, 5]);
+        this.ctx.stroke();
+        this.ctx.setLineDash([]);
+      }
+    });
+  }
+
   drawHealthBar(currentHealth, maxHealth) {
     const heartSize = 40;
     const heartSpacing = 50;
