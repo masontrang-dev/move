@@ -316,6 +316,117 @@ class Renderer {
     }
   }
 
+  drawGridTile(tile, isActive = false, isNext = false) {
+    const padding = 1;
+    const x = tile.x + padding;
+    const y = tile.y + padding;
+    const width = tile.width - padding * 2;
+    const height = tile.height - padding * 2;
+
+    if (tile.type === "home") {
+      this.ctx.fillStyle = isActive
+        ? "rgba(0, 255, 0, 0.9)"
+        : "rgba(0, 255, 0, 0.6)";
+      this.ctx.fillRect(x, y, width, height);
+      this.ctx.strokeStyle = "#00FF00";
+      this.ctx.lineWidth = isActive ? 4 : 2;
+      this.ctx.strokeRect(x, y, width, height);
+
+      this.ctx.fillStyle = "#FFFFFF";
+      this.ctx.font = "bold 14px Arial";
+      this.ctx.textAlign = "center";
+      // this.ctx.fillText("HOME", tile.centerX, tile.centerY + 5);
+    } else if (tile.type === "target") {
+      this.ctx.fillStyle = "rgba(0, 217, 255, 0.7)";
+      this.ctx.fillRect(x, y, width, height);
+      this.ctx.strokeStyle = "#00D9FF";
+      this.ctx.lineWidth = 2;
+      this.ctx.strokeRect(x, y, width, height);
+    } else if (tile.type === "penalty") {
+      this.ctx.fillStyle = "rgba(255, 68, 68, 0.6)";
+      this.ctx.fillRect(x, y, width, height);
+      this.ctx.strokeStyle = "#FF4444";
+      this.ctx.lineWidth = 2;
+      this.ctx.strokeRect(x, y, width, height);
+    } else {
+      this.ctx.fillStyle = "rgba(40, 40, 40, 0.3)";
+      this.ctx.fillRect(x, y, width, height);
+      this.ctx.strokeStyle = "rgba(80, 80, 80, 0.4)";
+      this.ctx.lineWidth = 1;
+      this.ctx.strokeRect(x, y, width, height);
+    }
+  }
+
+  drawGridSequenceInfo(progress) {
+    this.ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+    this.ctx.fillRect(this.canvas.width / 2 - 200, 20, 400, 110);
+
+    this.ctx.fillStyle = "#FFFFFF";
+    this.ctx.font = "bold 28px Arial";
+    this.ctx.textAlign = "center";
+    this.ctx.fillText(
+      `Level ${progress.currentLevel} - Zones: ${progress.current} / ${progress.total}`,
+      this.canvas.width / 2,
+      50,
+    );
+
+    this.ctx.font = "18px Arial";
+    this.ctx.fillStyle = "#AAAAAA";
+    this.ctx.fillText(
+      `Levels Completed: ${progress.completedSequences}`,
+      this.canvas.width / 2,
+      75,
+    );
+
+    this.ctx.fillStyle = progress.allCollected ? "#00FF00" : "#00D9FF";
+    this.ctx.font = "bold 16px Arial";
+    this.ctx.fillText(
+      progress.allCollected
+        ? "✓ All collected! Put BOTH WRISTS in GREEN ZONE"
+        : "→ Collect all BLUE zones",
+      this.canvas.width / 2,
+      100,
+    );
+  }
+
+  drawGridPattern(
+    tiles,
+    progress,
+    keypoints,
+    score,
+    health,
+    maxHealth,
+    deltaTime,
+    timeRemaining,
+    isPaused,
+  ) {
+    this.clear();
+
+    tiles.forEach((tile) => {
+      const shouldGlow = tile.type === "home" && progress.allCollected;
+      this.drawGridTile(tile, shouldGlow, false);
+    });
+
+    this.drawSkeleton(keypoints);
+
+    this.drawGridSequenceInfo(progress);
+
+    this.ctx.fillStyle = "#FFFFFF";
+    this.ctx.font = "bold 48px Arial";
+    this.ctx.textAlign = "left";
+    this.ctx.fillText(`Score: ${score}`, 20, 60);
+
+    this.drawTimer(timeRemaining);
+    this.drawHealthBar(health, maxHealth);
+
+    this.drawFlash();
+    this.updateAndDrawScorePopups(deltaTime);
+
+    if (isPaused) {
+      this.drawPauseOverlay();
+    }
+  }
+
   triggerFlash(color = "white") {
     this.flashAlpha = 0.5;
     this.flashColor = color;

@@ -366,6 +366,22 @@ const GameCanvas = ({ onGameEnd }) => {
                   >
                     🤸 Shape Matching
                   </button>
+                  <button
+                    onClick={() => setGameMode("gridPattern")}
+                    style={{
+                      padding: "0.75rem 1.5rem",
+                      fontSize: "1rem",
+                      backgroundColor:
+                        gameMode === "gridPattern" ? "#4CAF50" : "#666",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "8px",
+                      cursor: "pointer",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    ⚡ Grid Pattern
+                  </button>
                 </div>
               </div>
 
@@ -570,7 +586,7 @@ const GameCanvas = ({ onGameEnd }) => {
             <li>⏸️ Press ESC to pause/resume the game</li>
             <li>📈 Difficulty increases as time progresses</li>
           </ul>
-        ) : (
+        ) : gameMode === "shapeMatching" ? (
           <ul style={{ textAlign: "left", lineHeight: "1.8" }}>
             <li>🤸 Match your body position to the displayed shape</li>
             <li>
@@ -588,6 +604,20 @@ const GameCanvas = ({ onGameEnd }) => {
               📈 Shapes get harder and tolerance zones shrink as difficulty
               increases
             </li>
+          </ul>
+        ) : (
+          <ul style={{ textAlign: "left", lineHeight: "1.8" }}>
+            <li>⚡ Screen is divided into a visible grid of tiles</li>
+            <li>🔵 Collect all BLUE tiles by touching them with your wrists</li>
+            <li>
+              🟢 Once all blues are collected, put BOTH WRISTS in the GREEN home
+              tile to complete the level
+            </li>
+            <li>⚪ Gray tiles are neutral - they don't do anything</li>
+            <li>🔴 Avoid RED penalty tiles (coming soon)</li>
+            <li>⏱️ Faster completion = higher score bonuses</li>
+            <li>💯 Complete as many levels as possible before time runs out</li>
+            <li>⏸️ Press ESC to pause/resume the game</li>
           </ul>
         )}
       </div>

@@ -189,6 +189,32 @@ const Game = ({ onBack }) => {
                   </div>
                 </div>
               )}
+
+            {sessionStats.gameMode === "gridPattern" &&
+              sessionStats.gridSequencesCompleted !== undefined && (
+                <div
+                  style={{
+                    textAlign: "center",
+                    padding: "1rem",
+                    backgroundColor: "#1a1a1a",
+                    borderRadius: "8px",
+                    gridColumn: "1 / -1",
+                  }}
+                >
+                  <div style={{ color: "#aaa", marginBottom: "0.5rem" }}>
+                    Sequences Completed
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "1.5rem",
+                      fontWeight: "bold",
+                      color: "#4CAF50",
+                    }}
+                  >
+                    {sessionStats.gridSequencesCompleted}
+                  </div>
+                </div>
+              )}
           </div>
         </div>
 

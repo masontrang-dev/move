@@ -11,6 +11,7 @@ import {
 import { ShapeGenerator } from "./shapeTemplates.js";
 import ShapeMatchingDetector from "./shapeMatching.js";
 import CalibrationSystem from "./calibration.js";
+import GridPatternManager from "./gridPattern.js";
 
 class GameLoop {
   constructor(canvas, config = {}) {
@@ -26,6 +27,10 @@ class GameLoop {
       canvas.height,
     );
     this.calibrationSystem = new CalibrationSystem(canvas.width, canvas.height);
+    this.gridPatternManager = new GridPatternManager(
+      canvas.width,
+      canvas.height,
+    );
 
     this.targets = [];
     this.score = 0;
@@ -68,6 +73,7 @@ class GameLoop {
     this.calibrationCountdown = 3;
     this.calibrationCountdownStartTime = 0;
     this.isCalibrationCountdown = false;
+    this.gridSequencesCompleted = 0;
   }
 
   setObstaclesEnabled(enabled) {
@@ -183,6 +189,10 @@ class GameLoop {
     if (this.calibrationSystem) {
       this.calibrationSystem.reset();
     }
+    if (this.gridPatternManager) {
+      this.gridPatternManager.reset();
+    }
+    this.gridSequencesCompleted = 0;
   }
 
   loop(timestamp) {
@@ -228,6 +238,8 @@ class GameLoop {
 
     if (this.gameMode === "shapeMatching") {
       this.updateShapeMatching(deltaTime, currentTime);
+    } else if (this.gameMode === "gridPattern") {
+      this.updateGridPattern(deltaTime, currentTime);
     } else {
       this.spawner.setDifficultyMultiplier(this.difficultyMultiplier);
       if (this.spawner.shouldSpawn(currentTime)) {
@@ -360,6 +372,67 @@ class GameLoop {
     }
   }
 
+  updateGridPattern(deltaTime, currentTime) {
+    if (this.gridPatternManager.blueZones.length === 0) {
+      this.gridPatternManager.generateNewSequence();
+    }
+
+    this.gridPatternManager.setDifficultyMultiplier(this.difficultyMultiplier);
+
+    if (!this.poseData) return;
+
+    const leftWrist = this.poseData.find((kp) => kp.name === "left_wrist");
+    const rightWrist = this.poseData.find((kp) => kp.name === "right_wrist");
+
+    const checkWrist = (wrist) => {
+      const result = this.gridPatternManager.checkWristHit(wrist, currentTime);
+      if (result.hit) {
+        if (result.type === "target") {
+          this.score += result.points;
+          this.audioManager.playHit();
+          this.renderer.triggerFlash();
+          const center = result.zone.getCenterPosition(
+            this.gridPatternManager.tileWidth,
+            this.gridPatternManager.tileHeight,
+          );
+          this.renderer.addScorePopup(center.x, center.y, result.points);
+        } else if (result.type === "penalty") {
+          this.score = Math.max(0, this.score + result.points);
+          this.healthManager.takeDamage();
+          this.audioManager.playMiss();
+          this.renderer.triggerDamageFlash();
+          const center = result.zone.getCenterPosition(
+            this.gridPatternManager.tileWidth,
+            this.gridPatternManager.tileHeight,
+          );
+          this.renderer.addScorePopup(center.x, center.y, result.points);
+        }
+      }
+    };
+
+    checkWrist(leftWrist);
+    checkWrist(rightWrist);
+
+    const homeResult = this.gridPatternManager.checkBothWristsInHome(
+      leftWrist,
+      rightWrist,
+      currentTime,
+    );
+
+    if (homeResult.hit && homeResult.type === "sequence_complete") {
+      this.score += homeResult.points;
+      this.audioManager.playHit();
+      this.renderer.triggerFlash();
+      const center = homeResult.zone.getCenterPosition(
+        this.gridPatternManager.tileWidth,
+        this.gridPatternManager.tileHeight,
+      );
+      this.renderer.addScorePopup(center.x, center.y, homeResult.points);
+      this.gridSequencesCompleted++;
+      this.gridPatternManager.generateNewSequence();
+    }
+  }
+
   startCalibration() {
     this.isCalibrationCountdown = true;
     this.calibrationCountdownStartTime = performance.now();
@@ -486,6 +559,8 @@ class GameLoop {
 
     if (this.gameMode === "shapeMatching") {
       this.renderShapeMatching(deltaTime, timeRemaining);
+    } else if (this.gameMode === "gridPattern") {
+      this.renderGridPattern(deltaTime, timeRemaining);
     } else {
       this.renderer.render(
         this.targets,
@@ -502,9 +577,27 @@ class GameLoop {
     }
   }
 
+  renderGridPattern(deltaTime, timeRemaining) {
+    const progress = this.gridPatternManager.getProgress();
+    const tiles = this.gridPatternManager.tiles;
+
+    this.renderer.drawGridPattern(
+      tiles,
+      progress,
+      this.poseData,
+      this.score,
+      this.healthManager.getHealth(),
+      this.healthManager.getMaxHealth(),
+      deltaTime,
+      timeRemaining,
+      this.isPaused,
+    );
+  }
+
   renderShapeMatching(deltaTime, timeRemaining) {
     this.renderer.clear();
 
+    // ...
     if (this.isCalibrationCountdown) {
       this.renderer.drawSkeleton(this.poseData);
       this.drawCalibrationCountdown();
@@ -714,6 +807,7 @@ class GameLoop {
       timeRemaining: Math.max(0, this.sessionDuration - this.elapsedTime),
       gameMode: this.gameMode,
       shapesCompleted: this.shapesCompleted,
+      gridSequencesCompleted: this.gridSequencesCompleted,
     };
   }
 
