@@ -61,6 +61,13 @@ class GameLoop {
     this.shapeHoldRequired = 1000;
     this.isCalibrating = false;
     this.calibrationComplete = false;
+    this.shapeApproachTime = 5000;
+    this.shapeStartTime = 0;
+    this.shapeScale = 0.3;
+    this.shapeAlpha = 0.3;
+    this.calibrationCountdown = 3;
+    this.calibrationCountdownStartTime = 0;
+    this.isCalibrationCountdown = false;
   }
 
   setObstaclesEnabled(enabled) {
@@ -167,6 +174,12 @@ class GameLoop {
     this.shapeHoldTime = 0;
     this.isCalibrating = false;
     this.calibrationComplete = false;
+    this.shapeStartTime = 0;
+    this.shapeScale = 0.3;
+    this.shapeAlpha = 0.3;
+    this.calibrationCountdown = 3;
+    this.calibrationCountdownStartTime = 0;
+    this.isCalibrationCountdown = false;
     if (this.calibrationSystem) {
       this.calibrationSystem.reset();
     }
@@ -246,6 +259,17 @@ class GameLoop {
   }
 
   updateShapeMatching(deltaTime, currentTime) {
+    if (this.isCalibrationCountdown) {
+      const elapsed = currentTime - this.calibrationCountdownStartTime;
+      const secondsRemaining = Math.ceil((3000 - elapsed) / 1000);
+
+      if (elapsed >= 3000) {
+        this.isCalibrationCountdown = false;
+        this.isCalibrating = true;
+      }
+      return;
+    }
+
     if (this.isCalibrating) {
       this.calibrationSystem.addSample(this.poseData);
       return;
@@ -266,7 +290,19 @@ class GameLoop {
 
       this.currentShape = shape;
       this.shapeHoldTime = 0;
+      this.shapeStartTime = currentTime;
+      this.shapeScale = 0.3;
+      this.shapeAlpha = 0.3;
     }
+
+    const elapsed = currentTime - this.shapeStartTime;
+    const progress = Math.min(1.0, elapsed / this.shapeApproachTime);
+    this.shapeScale = 0.3 + progress * 0.7;
+    this.shapeAlpha = 0.3 + progress * 0.7;
+
+    const matchingWindow = this.shapeApproachTime * 0.3;
+    const isInMatchingWindow =
+      elapsed >= this.shapeApproachTime - matchingWindow;
 
     this.shapeMatchingDetector.setDifficultyMultiplier(
       this.difficultyMultiplier,
@@ -276,17 +312,12 @@ class GameLoop {
       this.currentShape,
     );
 
-    if (this.currentMatchResult.isMatch) {
-      this.shapeHoldTime += deltaTime;
-
-      if (this.shapeHoldTime >= this.shapeHoldRequired) {
-        const timeBonus = Math.max(
-          0,
-          500 - Math.floor(this.shapeHoldTime / 100),
-        );
+    if (elapsed >= this.shapeApproachTime) {
+      if (this.currentMatchResult.isMatch) {
+        const timingBonus = 500;
         const points = this.shapeMatchingDetector.calculateScore(
           this.currentMatchResult,
-          timeBonus,
+          timingBonus,
         );
         this.score += points;
         this.shapesCompleted++;
@@ -298,31 +329,41 @@ class GameLoop {
           this.canvas.height / 2,
           points,
         );
-
-        let newShape = null;
-        if (this.calibrationComplete && this.calibrationSystem.isComplete()) {
-          const difficultyLevel =
-            this.difficulty === "easy"
-              ? "easy"
-              : this.difficulty === "hard"
-                ? "hard"
-                : "medium";
-          const rawShape =
-            this.shapeGenerator.generateRandomShape(difficultyLevel);
-          newShape = this.calibrationSystem.scaleShapeToUser(rawShape);
-        }
-
-        this.currentShape = newShape;
-        this.currentMatchResult = null;
-        this.shapeHoldTime = 0;
+      } else {
+        this.audioManager.playMiss();
+        this.renderer.triggerDamageFlash();
       }
+
+      const difficultyLevel =
+        this.difficulty === "easy"
+          ? "easy"
+          : this.difficulty === "hard"
+            ? "hard"
+            : "medium";
+      let rawShape = this.shapeGenerator.generateRandomShape(difficultyLevel);
+
+      let newShape = rawShape;
+      if (this.calibrationComplete && this.calibrationSystem.isComplete()) {
+        newShape = this.calibrationSystem.scaleShapeToUser(rawShape);
+      }
+
+      this.currentShape = newShape;
+      this.currentMatchResult = null;
+      this.shapeHoldTime = 0;
+      this.shapeStartTime = currentTime;
+      this.shapeScale = 0.3;
+      this.shapeAlpha = 0.3;
+    } else if (isInMatchingWindow && this.currentMatchResult.isMatch) {
+      this.shapeHoldTime += deltaTime;
     } else {
       this.shapeHoldTime = 0;
     }
   }
 
   startCalibration() {
-    this.isCalibrating = true;
+    this.isCalibrationCountdown = true;
+    this.calibrationCountdownStartTime = performance.now();
+    this.isCalibrating = false;
     this.calibrationComplete = false;
     this.calibrationSystem.reset();
   }
@@ -342,7 +383,7 @@ class GameLoop {
   }
 
   isCalibrationMode() {
-    return this.isCalibrating;
+    return this.isCalibrating || this.isCalibrationCountdown;
   }
 
   updateDifficulty() {
@@ -464,20 +505,32 @@ class GameLoop {
   renderShapeMatching(deltaTime, timeRemaining) {
     this.renderer.clear();
 
-    if (this.isCalibrating) {
+    if (this.isCalibrationCountdown) {
+      this.renderer.drawSkeleton(this.poseData);
+      this.drawCalibrationCountdown();
+    } else if (this.isCalibrating) {
       this.renderer.drawSkeleton(this.poseData);
       this.drawCalibrationOverlay();
     } else {
       if (this.currentShape) {
+        const elapsed = performance.now() - this.shapeStartTime;
+        const timeRemaining = Math.max(0, this.shapeApproachTime - elapsed);
+
         this.renderer.drawShapeConnections(
           this.currentShape,
           this.poseData,
           this.currentMatchResult,
+          this.shapeScale,
+          this.shapeAlpha,
         );
         this.renderer.drawShapeTargets(
           this.currentShape,
           this.currentMatchResult,
+          this.shapeScale,
+          this.shapeAlpha,
         );
+
+        this.drawApproachTimer(timeRemaining);
       }
 
       this.renderer.drawSkeleton(this.poseData);
@@ -494,9 +547,18 @@ class GameLoop {
         timeRemaining,
       );
 
-      if (this.currentMatchResult && this.currentMatchResult.isMatch) {
+      const elapsed = performance.now() - this.shapeStartTime;
+      const matchingWindow = this.shapeApproachTime * 0.3;
+      const isInMatchingWindow =
+        elapsed >= this.shapeApproachTime - matchingWindow;
+
+      if (
+        isInMatchingWindow &&
+        this.currentMatchResult &&
+        this.currentMatchResult.isMatch
+      ) {
         const holdProgress = this.shapeHoldTime / this.shapeHoldRequired;
-        this.drawHoldProgress(holdProgress);
+        this.drawMatchIndicator(holdProgress);
       }
 
       this.renderer.drawFlash();
@@ -506,6 +568,45 @@ class GameLoop {
         this.renderer.drawPauseOverlay();
       }
     }
+  }
+
+  drawCalibrationCountdown() {
+    const ctx = this.renderer.ctx;
+    const elapsed = performance.now() - this.calibrationCountdownStartTime;
+    const secondsRemaining = Math.max(0, Math.ceil((3000 - elapsed) / 1000));
+
+    ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
+    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+    ctx.fillStyle = "#FFFFFF";
+    ctx.font = "bold 48px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText(
+      "GET READY FOR CALIBRATION",
+      this.canvas.width / 2,
+      this.canvas.height / 2 - 150,
+    );
+
+    ctx.font = "24px Arial";
+    ctx.fillStyle = "#AAAAAA";
+    ctx.fillText(
+      "Stand in a T-Pose with arms straight out",
+      this.canvas.width / 2,
+      this.canvas.height / 2 - 100,
+    );
+    ctx.fillText(
+      "Calibration will begin in...",
+      this.canvas.width / 2,
+      this.canvas.height / 2 - 60,
+    );
+
+    ctx.fillStyle = secondsRemaining <= 1 ? "#FF4444" : "#4CAF50";
+    ctx.font = "bold 120px Arial";
+    ctx.fillText(
+      secondsRemaining.toString(),
+      this.canvas.width / 2,
+      this.canvas.height / 2 + 50,
+    );
   }
 
   drawCalibrationOverlay() {
@@ -558,30 +659,46 @@ class GameLoop {
     ctx.fillText(`${percentage}%`, this.canvas.width / 2, barY + 27);
   }
 
-  drawHoldProgress(progress) {
+  drawApproachTimer(timeRemaining) {
     const ctx = this.renderer.ctx;
-    const barWidth = 300;
-    const barHeight = 30;
-    const x = this.canvas.width / 2 - barWidth / 2;
-    const y = this.canvas.height - 100;
+    const seconds = Math.ceil(timeRemaining / 1000);
 
     ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
-    ctx.fillRect(x - 5, y - 5, barWidth + 10, barHeight + 10);
+    ctx.fillRect(this.canvas.width / 2 - 60, 140, 120, 60);
 
-    ctx.fillStyle = "#333";
-    ctx.fillRect(x, y, barWidth, barHeight);
+    ctx.fillStyle = timeRemaining < 1500 ? "#FF4444" : "#FFFFFF";
+    ctx.font = "bold 48px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText(seconds.toString(), this.canvas.width / 2, 185);
+
+    ctx.font = "16px Arial";
+    ctx.fillStyle = "#AAAAAA";
+    ctx.fillText("seconds", this.canvas.width / 2, 205);
+  }
+
+  drawMatchIndicator(progress) {
+    const ctx = this.renderer.ctx;
+    const size = 100;
+    const x = this.canvas.width / 2;
+    const y = this.canvas.height / 2;
+
+    ctx.beginPath();
+    ctx.arc(
+      x,
+      y,
+      size,
+      -Math.PI / 2,
+      -Math.PI / 2 + Math.PI * 2 * progress,
+      false,
+    );
+    ctx.strokeStyle = "#00FF00";
+    ctx.lineWidth = 10;
+    ctx.stroke();
 
     ctx.fillStyle = "#00FF00";
-    ctx.fillRect(x, y, barWidth * progress, barHeight);
-
-    ctx.strokeStyle = "#FFF";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(x, y, barWidth, barHeight);
-
-    ctx.fillStyle = "#FFF";
-    ctx.font = "bold 16px Arial";
+    ctx.font = "bold 24px Arial";
     ctx.textAlign = "center";
-    ctx.fillText("HOLD POSITION", this.canvas.width / 2, y - 15);
+    ctx.fillText("MATCHED!", x, y + 8);
   }
 
   getScore() {
@@ -610,6 +727,14 @@ class GameLoop {
 
   getCalibrationSystem() {
     return this.calibrationSystem;
+  }
+
+  getShapeScale() {
+    return this.shapeScale;
+  }
+
+  getShapeAlpha() {
+    return this.shapeAlpha;
   }
 }
 

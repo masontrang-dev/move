@@ -162,7 +162,7 @@ class Renderer {
     );
   }
 
-  drawShapeTargets(targetShape, matchResult) {
+  drawShapeTargets(targetShape, matchResult, scale = 1.0, alpha = 1.0) {
     if (!targetShape || !targetShape.positions) return;
 
     const keypointNames = [
@@ -178,12 +178,18 @@ class Renderer {
       const targetPos = targetShape.positions[keypointName];
       if (!targetPos) return;
 
-      const x = targetPos.x * this.canvas.width;
-      const y = targetPos.y * this.canvas.height;
-      const radius = matchResult?.toleranceRadius || 80;
+      const centerX = this.canvas.width / 2;
+      const centerY = this.canvas.height / 2;
+      const offsetX = (targetPos.x * this.canvas.width - centerX) * scale;
+      const offsetY = (targetPos.y * this.canvas.height - centerY) * scale;
+      const x = centerX + offsetX;
+      const y = centerY + offsetY;
+      const radius = (matchResult?.toleranceRadius || 80) * scale;
 
       const detail = matchResult?.details?.[keypointName];
       const isMatched = detail?.matched || false;
+
+      this.ctx.globalAlpha = alpha;
 
       this.ctx.beginPath();
       this.ctx.arc(x, y, radius, 0, 2 * Math.PI);
@@ -196,15 +202,17 @@ class Renderer {
       this.ctx.stroke();
 
       this.ctx.beginPath();
-      this.ctx.arc(x, y, 8, 0, 2 * Math.PI);
+      this.ctx.arc(x, y, 8 * scale, 0, 2 * Math.PI);
       this.ctx.fillStyle = isMatched ? "#00FF00" : "#FFFF00";
       this.ctx.fill();
 
       this.ctx.fillStyle = "#FFFFFF";
-      this.ctx.font = "bold 14px Arial";
+      this.ctx.font = `bold ${14 * scale}px Arial`;
       this.ctx.textAlign = "center";
       const label = keypointName.replace("_", " ").toUpperCase();
       this.ctx.fillText(label, x, y - radius - 10);
+
+      this.ctx.globalAlpha = 1.0;
     });
   }
 
@@ -234,7 +242,13 @@ class Renderer {
     }
   }
 
-  drawShapeConnections(targetShape, keypoints, matchResult) {
+  drawShapeConnections(
+    targetShape,
+    keypoints,
+    matchResult,
+    scale = 1.0,
+    alpha = 1.0,
+  ) {
     if (!targetShape || !keypoints) return;
 
     const connections = [
@@ -245,26 +259,40 @@ class Renderer {
       ["left_shoulder", "right_shoulder"],
     ];
 
+    const centerX = this.canvas.width / 2;
+    const centerY = this.canvas.height / 2;
+
+    this.ctx.globalAlpha = alpha * 0.5;
+
     connections.forEach(([startName, endName]) => {
       const startTarget = targetShape.positions[startName];
       const endTarget = targetShape.positions[endName];
 
       if (startTarget && endTarget) {
-        const startX = startTarget.x * this.canvas.width;
-        const startY = startTarget.y * this.canvas.height;
-        const endX = endTarget.x * this.canvas.width;
-        const endY = endTarget.y * this.canvas.height;
+        const startOffsetX =
+          (startTarget.x * this.canvas.width - centerX) * scale;
+        const startOffsetY =
+          (startTarget.y * this.canvas.height - centerY) * scale;
+        const endOffsetX = (endTarget.x * this.canvas.width - centerX) * scale;
+        const endOffsetY = (endTarget.y * this.canvas.height - centerY) * scale;
+
+        const startX = centerX + startOffsetX;
+        const startY = centerY + startOffsetY;
+        const endX = centerX + endOffsetX;
+        const endY = centerY + endOffsetY;
 
         this.ctx.beginPath();
         this.ctx.moveTo(startX, startY);
         this.ctx.lineTo(endX, endY);
         this.ctx.strokeStyle = "rgba(255, 255, 0, 0.5)";
-        this.ctx.lineWidth = 2;
-        this.ctx.setLineDash([5, 5]);
+        this.ctx.lineWidth = 2 * scale;
+        this.ctx.setLineDash([5 * scale, 5 * scale]);
         this.ctx.stroke();
         this.ctx.setLineDash([]);
       }
     });
+
+    this.ctx.globalAlpha = 1.0;
   }
 
   drawHealthBar(currentHealth, maxHealth) {
