@@ -1,13 +1,21 @@
 import Spawner from "./spawner.js";
 import Renderer from "./renderer.js";
 import AudioManager from "./audio.js";
-import { checkTargetHit, getDistanceFromCenter } from "./collision.js";
+import { ObstacleManager } from "./obstacles.js";
+import HealthManager from "./health.js";
+import {
+  checkTargetHit,
+  checkObstacleCollision,
+  getDistanceFromCenter,
+} from "./collision.js";
 
 class GameLoop {
   constructor(canvas) {
     this.canvas = canvas;
     this.renderer = new Renderer(canvas);
     this.spawner = new Spawner(canvas.width, canvas.height);
+    this.obstacleManager = new ObstacleManager(canvas.width, canvas.height);
+    this.healthManager = new HealthManager();
     this.audioManager = new AudioManager();
 
     this.targets = [];
@@ -18,10 +26,16 @@ class GameLoop {
     this.animationId = null;
     this.lastTimestamp = 0;
     this.isRunning = false;
+    this.gameOver = false;
+    this.obstaclesEnabled = true;
 
     this.poseData = null;
     this.previousWristPositions = { left: null, right: null };
     this.wristVelocities = { left: 0, right: 0 };
+  }
+
+  setObstaclesEnabled(enabled) {
+    this.obstaclesEnabled = enabled;
   }
 
   async init() {
@@ -89,9 +103,12 @@ class GameLoop {
 
   reset() {
     this.targets = [];
+    this.obstacleManager.clear();
+    this.healthManager.reset();
     this.score = 0;
     this.combo = 1;
     this.consecutiveHits = 0;
+    this.gameOver = false;
     this.previousWristPositions = { left: null, right: null };
     this.wristVelocities = { left: 0, right: 0 };
   }
@@ -105,12 +122,25 @@ class GameLoop {
     this.update(deltaTime, timestamp);
     this.render(deltaTime);
 
+    if (this.healthManager.isDead() && !this.gameOver) {
+      this.gameOver = true;
+      this.stop();
+      return;
+    }
+
     this.animationId = requestAnimationFrame((ts) => this.loop(ts));
   }
 
   update(deltaTime, currentTime) {
+    this.healthManager.update(currentTime);
+
     if (this.spawner.shouldSpawn(currentTime)) {
       this.targets.push(this.spawner.createTarget());
+    }
+
+    if (this.obstaclesEnabled) {
+      this.obstacleManager.spawn(currentTime);
+      this.obstacleManager.update(deltaTime);
     }
 
     this.targets.forEach((target) => {
@@ -155,6 +185,16 @@ class GameLoop {
       }
       return true;
     });
+
+    if (this.obstaclesEnabled) {
+      const obstacles = this.obstacleManager.getObstacles();
+      for (const obstacle of obstacles) {
+        if (checkObstacleCollision(this.poseData, obstacle)) {
+          this.handleObstacleHit();
+          break;
+        }
+      }
+    }
   }
 
   handleHit(target, wrist) {
@@ -177,6 +217,14 @@ class GameLoop {
     this.renderer.addScorePopup(target.x, target.y, finalPoints);
   }
 
+  handleObstacleHit() {
+    const damaged = this.healthManager.takeDamage();
+    if (damaged) {
+      this.resetCombo();
+      this.renderer.triggerDamageFlash();
+    }
+  }
+
   resetCombo() {
     this.consecutiveHits = 0;
     this.combo = 1;
@@ -185,9 +233,12 @@ class GameLoop {
   render(deltaTime) {
     this.renderer.render(
       this.targets,
+      this.obstacleManager.getObstacles(),
       this.poseData,
       this.score,
       this.combo,
+      this.healthManager.getHealth(),
+      this.healthManager.getMaxHealth(),
       deltaTime,
     );
   }

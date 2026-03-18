@@ -5,6 +5,7 @@ class Renderer {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d");
     this.flashAlpha = 0;
+    this.flashColor = "white";
     this.scorePopups = [];
     this.scale = 1;
   }
@@ -81,7 +82,38 @@ class Renderer {
     });
   }
 
-  drawHUD(score, combo) {
+  drawObstacles(obstacles) {
+    obstacles.forEach((obstacle) => {
+      if (obstacle.isWarning) {
+        this.ctx.fillStyle = "rgba(255, 68, 68, 0.3)";
+        this.ctx.strokeStyle = "rgba(255, 0, 0, 0.5)";
+        this.ctx.setLineDash([10, 10]);
+      } else {
+        this.ctx.fillStyle = "#FF4444";
+        this.ctx.strokeStyle = "#FF0000";
+        this.ctx.setLineDash([]);
+      }
+
+      this.ctx.fillRect(
+        obstacle.x,
+        obstacle.y,
+        obstacle.width,
+        obstacle.height,
+      );
+
+      this.ctx.lineWidth = 4;
+      this.ctx.strokeRect(
+        obstacle.x,
+        obstacle.y,
+        obstacle.width,
+        obstacle.height,
+      );
+
+      this.ctx.setLineDash([]);
+    });
+  }
+
+  drawHUD(score, combo, currentHealth, maxHealth) {
     this.ctx.fillStyle = "#FFFFFF";
     this.ctx.font = "bold 48px Arial";
     this.ctx.textAlign = "left";
@@ -93,15 +125,45 @@ class Renderer {
       this.ctx.textAlign = "center";
       this.ctx.fillText(`${combo}x COMBO!`, this.canvas.width / 2, 60);
     }
+
+    this.drawHealthBar(currentHealth, maxHealth);
   }
 
-  triggerFlash() {
+  drawHealthBar(currentHealth, maxHealth) {
+    const heartSize = 40;
+    const heartSpacing = 50;
+    const startX = this.canvas.width - maxHealth * heartSpacing - 20;
+    const startY = 20;
+
+    for (let i = 0; i < maxHealth; i++) {
+      const x = startX + i * heartSpacing;
+      const y = startY;
+
+      if (i < currentHealth) {
+        this.ctx.fillStyle = "#FF0000";
+      } else {
+        this.ctx.fillStyle = "#444444";
+      }
+
+      this.ctx.font = `${heartSize}px Arial`;
+      this.ctx.fillText("❤", x, y + heartSize);
+    }
+  }
+
+  triggerFlash(color = "white") {
     this.flashAlpha = 0.5;
+    this.flashColor = color;
+  }
+
+  triggerDamageFlash() {
+    this.flashAlpha = 0.6;
+    this.flashColor = "red";
   }
 
   drawFlash() {
     if (this.flashAlpha > 0) {
-      this.ctx.fillStyle = `rgba(255, 255, 255, ${this.flashAlpha})`;
+      const rgb = this.flashColor === "red" ? "255, 0, 0" : "255, 255, 255";
+      this.ctx.fillStyle = `rgba(${rgb}, ${this.flashAlpha})`;
       this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
       this.flashAlpha -= 0.05;
     }
@@ -133,14 +195,24 @@ class Renderer {
     });
   }
 
-  render(targets, keypoints, score, combo, deltaTime) {
+  render(
+    targets,
+    obstacles,
+    keypoints,
+    score,
+    combo,
+    health,
+    maxHealth,
+    deltaTime,
+  ) {
     this.ctx.save();
     this.ctx.scale(this.scale, this.scale);
 
     this.clear();
+    this.drawObstacles(obstacles);
     this.drawTargets(targets);
     this.drawSkeleton(keypoints);
-    this.drawHUD(score, combo);
+    this.drawHUD(score, combo, health, maxHealth);
     this.drawFlash();
     this.updateAndDrawScorePopups(deltaTime);
 

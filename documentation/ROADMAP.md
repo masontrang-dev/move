@@ -47,16 +47,16 @@ Get the project scaffolded and environment working before writing any game code.
 
 ---
 
-## Phase 3 — Dodge Mechanic (Weeks 7–8)
+## Phase 3 — Dodge Mechanic (Weeks 7–8) ✅
 
 **Goal:** Add obstacles the player must avoid with their body.
 
-- [ ] Spawn obstacle bars that sweep across the screen (horizontal beams)
-- [ ] Check all major body keypoints against obstacle zone
-- [ ] Implement health/lives system (3 hits = game over)
-- [ ] Add low obstacles that require squatting (check head keypoint height)
-- [ ] Add high obstacles that require ducking (check wrist/shoulder height)
-- [ ] Visual feedback on collision (red flash, health bar drop)
+- [x] Spawn obstacle bars that sweep across the screen (horizontal beams)
+- [x] Check all major body keypoints against obstacle zone
+- [x] Implement health/lives system (3 hits = game over)
+- [x] Add low obstacles that require squatting (check head keypoint height)
+- [x] Add high obstacles that require ducking (check wrist/shoulder height)
+- [x] Visual feedback on collision (red flash, health bar drop)
 
 **Done when:** Player must actively move their whole body, not just arms.
 

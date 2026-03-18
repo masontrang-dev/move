@@ -14,6 +14,7 @@ const GameCanvas = ({ onGameEnd }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [obstaclesEnabled, setObstaclesEnabled] = useState(true);
 
   useEffect(() => {
     initializeGame();
@@ -130,6 +131,7 @@ const GameCanvas = ({ onGameEnd }) => {
   const handleStartGame = () => {
     if (gameLoopRef.current) {
       gameLoopRef.current.reset();
+      gameLoopRef.current.setObstaclesEnabled(obstaclesEnabled);
       gameLoopRef.current.start();
       setIsPlaying(true);
     }
@@ -230,7 +232,39 @@ const GameCanvas = ({ onGameEnd }) => {
         />
       </div>
 
-      <div style={{ display: "flex", gap: "1rem" }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "1rem",
+          alignItems: "center",
+        }}
+      >
+        {!isPlaying && (
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              color: "#fff",
+              fontSize: "1.1rem",
+              cursor: "pointer",
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={obstaclesEnabled}
+              onChange={(e) => setObstaclesEnabled(e.target.checked)}
+              style={{
+                width: "20px",
+                height: "20px",
+                cursor: "pointer",
+              }}
+            />
+            Enable Obstacles
+          </label>
+        )}
+
         {!isPlaying ? (
           <button
             onClick={handleStartGame}
