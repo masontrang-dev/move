@@ -29,19 +29,19 @@ Get the project scaffolded and environment working before writing any game code.
 
 ---
 
-## Phase 2 — First Mechanic (Weeks 4–6)
+## Phase 2 — First Mechanic (Weeks 4–6) ✅
 
 **Goal:** One playable mechanic. Targets appear, you hit them with your hands. Score goes up.
 
-- [ ] Build the game loop with `requestAnimationFrame`
-- [ ] Spawn circular targets at random positions
-- [ ] Move targets slowly across the screen
-- [ ] Implement zone collision: wrist keypoint inside target circle
-- [ ] Add velocity check: wrist must be moving to count as a hit
-- [ ] Add score counter
-- [ ] Add basic sound effect on hit (Howler.js)
-- [ ] Add screen flash on hit
-- [ ] Remove targets that reach the edge (miss = no penalty yet)
+- [x] Build the game loop with `requestAnimationFrame`
+- [x] Spawn circular targets at random positions
+- [x] Move targets slowly across the screen
+- [x] Implement zone collision: wrist keypoint inside target circle
+- [x] Add velocity check: wrist must be moving to count as a hit
+- [x] Add score counter
+- [x] Add basic sound effect on hit (Web Audio API)
+- [x] Add screen flash on hit
+- [x] Remove targets that reach the edge (miss = no penalty yet)
 
 **Done when:** You can punch targets and it feels satisfying.
 
