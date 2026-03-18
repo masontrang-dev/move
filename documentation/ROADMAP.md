@@ -78,6 +78,46 @@ Get the project scaffolded and environment working before writing any game code.
 
 ---
 
+## Phase 4.1 — Shape Matching Game Mode (Week 11.5)
+
+**Goal:** Add a "Hole in the Wall" style game mode where players match body shapes using upper body keypoints.
+
+- [ ] Create shape generator using 6 upper body keypoints (left/right wrist, elbow, shoulder)
+- [ ] Design shape templates with varying difficulty (easy poses to complex poses)
+- [ ] Implement shape matching detection (compare player pose to target shape)
+- [ ] Add game mode selector UI (Target Punching vs Shape Matching)
+- [ ] Create shape display renderer showing target positions for each keypoint
+- [ ] Add scoring system based on matching accuracy (tolerance zones per keypoint)
+- [ ] Visual feedback: show which keypoints are correctly positioned
+- [ ] Integrate with existing session timer and difficulty system
+- [ ] Shape progression: new shape appears after successful match or timeout
+
+**Done when:** You can select "Shape Matching" mode and play a full session matching body shapes.
+
+---
+
+## Phase 4.2 — Grid Pattern Game Mode (Week 12)
+
+**Goal:** Add an "Activate Megagrid" style game mode where players hit targets in sequence around the screen border.
+
+- [ ] Create grid/pattern system around screen perimeter (top, bottom, left, right edges)
+- [ ] Design target zones that can be hit with wrists (circular zones)
+- [ ] Implement color-coded target system:
+  - Blue/Cyan = targets to hit in sequence
+  - Green = "home" position to return to after completing sequence
+  - Red = penalty zones to avoid
+- [ ] Sequence tracking: highlight next target in sequence
+- [ ] Collision detection for wrist hitting grid targets
+- [ ] Penalty system: deduct points/health for hitting red zones
+- [ ] Bonus points for completing sequences quickly
+- [ ] Visual feedback: targets light up when hit, show sequence progress
+- [ ] Difficulty scaling: more targets, faster sequences, smaller zones
+- [ ] Add to game mode selector (Target Punching / Shape Matching / Grid Pattern)
+
+**Done when:** You can select "Grid Pattern" mode and complete target sequences racing against the clock.
+
+---
+
 ## Phase 5 — Accounts and Persistence (Weeks 12–13)
 
 **Goal:** Save progress, compare scores.
