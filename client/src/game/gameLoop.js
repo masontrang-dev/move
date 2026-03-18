@@ -10,7 +10,7 @@ import {
 } from "./collision.js";
 
 class GameLoop {
-  constructor(canvas) {
+  constructor(canvas, config = {}) {
     this.canvas = canvas;
     this.renderer = new Renderer(canvas);
     this.spawner = new Spawner(canvas.width, canvas.height);
@@ -28,10 +28,21 @@ class GameLoop {
     this.isRunning = false;
     this.gameOver = false;
     this.obstaclesEnabled = true;
+    this.isPaused = false;
 
     this.poseData = null;
     this.previousWristPositions = { left: null, right: null };
     this.wristVelocities = { left: 0, right: 0 };
+
+    this.sessionDuration = config.sessionDuration || 180000;
+    this.sessionStartTime = 0;
+    this.elapsedTime = 0;
+    this.pausedTime = 0;
+    this.lastPauseTime = 0;
+
+    this.difficulty = config.difficulty || "medium";
+    this.difficultyMultiplier = 1.0;
+    this.onSessionEnd = config.onSessionEnd || null;
   }
 
   setObstaclesEnabled(enabled) {
@@ -87,10 +98,25 @@ class GameLoop {
     if (this.isRunning) return;
 
     this.isRunning = true;
-    this.lastTimestamp = performance.now();
+    this.sessionStartTime = performance.now();
+    this.lastTimestamp = this.sessionStartTime;
     this.animationId = requestAnimationFrame((timestamp) =>
       this.loop(timestamp),
     );
+  }
+
+  pause() {
+    if (!this.isRunning || this.isPaused) return;
+    this.isPaused = true;
+    this.lastPauseTime = performance.now();
+  }
+
+  resume() {
+    if (!this.isRunning || !this.isPaused) return;
+    this.isPaused = false;
+    const pauseDuration = performance.now() - this.lastPauseTime;
+    this.pausedTime += pauseDuration;
+    this.lastTimestamp = performance.now();
   }
 
   stop() {
@@ -109,22 +135,47 @@ class GameLoop {
     this.combo = 1;
     this.consecutiveHits = 0;
     this.gameOver = false;
+    this.isPaused = false;
     this.previousWristPositions = { left: null, right: null };
     this.wristVelocities = { left: 0, right: 0 };
+    this.sessionStartTime = 0;
+    this.elapsedTime = 0;
+    this.pausedTime = 0;
+    this.lastPauseTime = 0;
+    this.difficultyMultiplier = 1.0;
   }
 
   loop(timestamp) {
     if (!this.isRunning) return;
 
+    if (this.isPaused) {
+      this.animationId = requestAnimationFrame((ts) => this.loop(ts));
+      return;
+    }
+
     const deltaTime = timestamp - this.lastTimestamp;
     this.lastTimestamp = timestamp;
+
+    this.elapsedTime = timestamp - this.sessionStartTime - this.pausedTime;
 
     this.update(deltaTime, timestamp);
     this.render(deltaTime);
 
+    if (this.elapsedTime >= this.sessionDuration) {
+      this.gameOver = true;
+      this.stop();
+      if (this.onSessionEnd) {
+        this.onSessionEnd(this.getSessionStats());
+      }
+      return;
+    }
+
     if (this.healthManager.isDead() && !this.gameOver) {
       this.gameOver = true;
       this.stop();
+      if (this.onSessionEnd) {
+        this.onSessionEnd(this.getSessionStats());
+      }
       return;
     }
 
@@ -132,13 +183,16 @@ class GameLoop {
   }
 
   update(deltaTime, currentTime) {
+    this.updateDifficulty();
     this.healthManager.update(currentTime);
 
+    this.spawner.setDifficultyMultiplier(this.difficultyMultiplier);
     if (this.spawner.shouldSpawn(currentTime)) {
       this.targets.push(this.spawner.createTarget());
     }
 
     if (this.obstaclesEnabled) {
+      this.obstacleManager.setDifficultyMultiplier(this.difficultyMultiplier);
       this.obstacleManager.spawn(currentTime);
       this.obstacleManager.update(deltaTime);
     }
@@ -158,6 +212,31 @@ class GameLoop {
       }
       return true;
     });
+  }
+
+  updateDifficulty() {
+    const progressPercent = this.elapsedTime / this.sessionDuration;
+
+    let baseMultiplier = 1.0;
+    let escalationRate = 0.5;
+
+    switch (this.difficulty) {
+      case "easy":
+        baseMultiplier = 0.7;
+        escalationRate = 0.3;
+        break;
+      case "medium":
+        baseMultiplier = 1.0;
+        escalationRate = 0.5;
+        break;
+      case "hard":
+        baseMultiplier = 1.3;
+        escalationRate = 0.8;
+        break;
+    }
+
+    this.difficultyMultiplier =
+      baseMultiplier + progressPercent * escalationRate;
   }
 
   checkCollisions() {
@@ -231,6 +310,7 @@ class GameLoop {
   }
 
   render(deltaTime) {
+    const timeRemaining = Math.max(0, this.sessionDuration - this.elapsedTime);
     this.renderer.render(
       this.targets,
       this.obstacleManager.getObstacles(),
@@ -240,11 +320,31 @@ class GameLoop {
       this.healthManager.getHealth(),
       this.healthManager.getMaxHealth(),
       deltaTime,
+      timeRemaining,
+      this.isPaused,
     );
   }
 
   getScore() {
     return this.score;
+  }
+
+  getSessionStats() {
+    return {
+      score: this.score,
+      duration: this.elapsedTime,
+      difficulty: this.difficulty,
+      maxCombo: this.consecutiveHits,
+      timeRemaining: Math.max(0, this.sessionDuration - this.elapsedTime),
+    };
+  }
+
+  getRemainingTime() {
+    return Math.max(0, this.sessionDuration - this.elapsedTime);
+  }
+
+  getIsPaused() {
+    return this.isPaused;
   }
 }
 

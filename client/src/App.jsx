@@ -51,7 +51,7 @@ function App() {
           onMouseOver={(e) => (e.target.style.backgroundColor = "#45a049")}
           onMouseOut={(e) => (e.target.style.backgroundColor = "#4CAF50")}
         >
-          🎮 Play Game (Phase 2)
+          🎮 Play Game (Phase 4)
         </button>
 
         <button

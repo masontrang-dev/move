@@ -113,7 +113,7 @@ class Renderer {
     });
   }
 
-  drawHUD(score, combo, currentHealth, maxHealth) {
+  drawHUD(score, combo, currentHealth, maxHealth, timeRemaining) {
     this.ctx.fillStyle = "#FFFFFF";
     this.ctx.font = "bold 48px Arial";
     this.ctx.textAlign = "left";
@@ -126,7 +126,40 @@ class Renderer {
       this.ctx.fillText(`${combo}x COMBO!`, this.canvas.width / 2, 60);
     }
 
+    this.drawTimer(timeRemaining);
     this.drawHealthBar(currentHealth, maxHealth);
+  }
+
+  drawTimer(timeRemaining) {
+    const minutes = Math.floor(timeRemaining / 60000);
+    const seconds = Math.floor((timeRemaining % 60000) / 1000);
+    const timeString = `${minutes}:${seconds.toString().padStart(2, "0")}`;
+
+    this.ctx.fillStyle = timeRemaining < 30000 ? "#FF4444" : "#FFFFFF";
+    this.ctx.font = "bold 36px Arial";
+    this.ctx.textAlign = "center";
+    this.ctx.fillText(
+      timeString,
+      this.canvas.width / 2,
+      this.canvas.height - 30,
+    );
+  }
+
+  drawPauseOverlay() {
+    this.ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+    this.ctx.fillStyle = "#FFFFFF";
+    this.ctx.font = "bold 72px Arial";
+    this.ctx.textAlign = "center";
+    this.ctx.fillText("PAUSED", this.canvas.width / 2, this.canvas.height / 2);
+
+    this.ctx.font = "bold 32px Arial";
+    this.ctx.fillText(
+      "Press ESC or click Resume to continue",
+      this.canvas.width / 2,
+      this.canvas.height / 2 + 60,
+    );
   }
 
   drawHealthBar(currentHealth, maxHealth) {
@@ -204,6 +237,8 @@ class Renderer {
     health,
     maxHealth,
     deltaTime,
+    timeRemaining = 0,
+    isPaused = false,
   ) {
     this.ctx.save();
     this.ctx.scale(this.scale, this.scale);
@@ -212,9 +247,13 @@ class Renderer {
     this.drawObstacles(obstacles);
     this.drawTargets(targets);
     this.drawSkeleton(keypoints);
-    this.drawHUD(score, combo, health, maxHealth);
+    this.drawHUD(score, combo, health, maxHealth, timeRemaining);
     this.drawFlash();
     this.updateAndDrawScorePopups(deltaTime);
+
+    if (isPaused) {
+      this.drawPauseOverlay();
+    }
 
     this.ctx.restore();
   }

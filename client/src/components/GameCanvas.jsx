@@ -15,6 +15,8 @@ const GameCanvas = ({ onGameEnd }) => {
   const [error, setError] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [obstaclesEnabled, setObstaclesEnabled] = useState(true);
+  const [difficulty, setDifficulty] = useState("medium");
+  const [sessionDuration, setSessionDuration] = useState(180);
 
   useEffect(() => {
     initializeGame();
@@ -23,6 +25,21 @@ const GameCanvas = ({ onGameEnd }) => {
       cleanup();
     };
   }, []);
+
+  useEffect(() => {
+    const handleKeyPress = (e) => {
+      if (e.key === "Escape" && isPlaying && gameLoopRef.current) {
+        if (gameLoopRef.current.getIsPaused()) {
+          gameLoopRef.current.resume();
+        } else {
+          gameLoopRef.current.pause();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyPress);
+    return () => window.removeEventListener("keydown", handleKeyPress);
+  }, [isPlaying]);
 
   const cleanup = () => {
     if (poseAnimationRef.current) {
@@ -64,7 +81,12 @@ const GameCanvas = ({ onGameEnd }) => {
       canvas.width = video.videoWidth * 2;
       canvas.height = video.videoHeight * 2;
 
-      const gameLoop = new GameLoop(canvas);
+      const gameConfig = {
+        sessionDuration: sessionDuration * 1000,
+        difficulty: difficulty,
+        onSessionEnd: handleSessionEnd,
+      };
+      const gameLoop = new GameLoop(canvas, gameConfig);
       await gameLoop.init();
       gameLoopRef.current = gameLoop;
 
@@ -128,12 +150,32 @@ const GameCanvas = ({ onGameEnd }) => {
     poseAnimationRef.current = requestAnimationFrame(detectPose);
   };
 
+  const handleSessionEnd = (stats) => {
+    setIsPlaying(false);
+    if (onGameEnd) {
+      onGameEnd(stats);
+    }
+  };
+
   const handleStartGame = () => {
     if (gameLoopRef.current) {
       gameLoopRef.current.reset();
       gameLoopRef.current.setObstaclesEnabled(obstaclesEnabled);
+      gameLoopRef.current.difficulty = difficulty;
+      gameLoopRef.current.sessionDuration = sessionDuration * 1000;
+      gameLoopRef.current.onSessionEnd = handleSessionEnd;
       gameLoopRef.current.start();
       setIsPlaying(true);
+    }
+  };
+
+  const handlePauseResume = () => {
+    if (gameLoopRef.current) {
+      if (gameLoopRef.current.getIsPaused()) {
+        gameLoopRef.current.resume();
+      } else {
+        gameLoopRef.current.pause();
+      }
     }
   };
 
@@ -142,7 +184,7 @@ const GameCanvas = ({ onGameEnd }) => {
       gameLoopRef.current.stop();
       setIsPlaying(false);
       if (onGameEnd) {
-        onGameEnd(gameLoopRef.current.getScore());
+        onGameEnd(gameLoopRef.current.getSessionStats());
       }
     }
   };
@@ -159,7 +201,7 @@ const GameCanvas = ({ onGameEnd }) => {
       }}
     >
       <h1 style={{ color: "#fff", marginBottom: "1rem" }}>
-        Phase 2: First Mechanic
+        Body Motion Game - Phase 4
       </h1>
 
       <div style={{ position: "relative", marginBottom: "1rem" }}>
@@ -241,63 +283,165 @@ const GameCanvas = ({ onGameEnd }) => {
         }}
       >
         {!isPlaying && (
-          <label
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              color: "#fff",
-              fontSize: "1.1rem",
-              cursor: "pointer",
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={obstaclesEnabled}
-              onChange={(e) => setObstaclesEnabled(e.target.checked)}
+          <>
+            <div style={{ display: "flex", gap: "2rem", marginBottom: "1rem" }}>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "0.5rem",
+                }}
+              >
+                <label
+                  style={{
+                    color: "#fff",
+                    fontSize: "1.1rem",
+                    fontWeight: "bold",
+                  }}
+                >
+                  Difficulty:
+                </label>
+                <div style={{ display: "flex", gap: "0.5rem" }}>
+                  {["easy", "medium", "hard"].map((level) => (
+                    <button
+                      key={level}
+                      onClick={() => setDifficulty(level)}
+                      style={{
+                        padding: "0.5rem 1.5rem",
+                        fontSize: "1rem",
+                        backgroundColor:
+                          difficulty === level ? "#4CAF50" : "#666",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "8px",
+                        cursor: "pointer",
+                        fontWeight: "bold",
+                        textTransform: "capitalize",
+                      }}
+                    >
+                      {level}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "0.5rem",
+                }}
+              >
+                <label
+                  style={{
+                    color: "#fff",
+                    fontSize: "1.1rem",
+                    fontWeight: "bold",
+                  }}
+                >
+                  Session Duration:
+                </label>
+                <div style={{ display: "flex", gap: "0.5rem" }}>
+                  {[60, 180, 300].map((duration) => (
+                    <button
+                      key={duration}
+                      onClick={() => setSessionDuration(duration)}
+                      style={{
+                        padding: "0.5rem 1.5rem",
+                        fontSize: "1rem",
+                        backgroundColor:
+                          sessionDuration === duration ? "#4CAF50" : "#666",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "8px",
+                        cursor: "pointer",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      {duration / 60} min
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <label
               style={{
-                width: "20px",
-                height: "20px",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                color: "#fff",
+                fontSize: "1.1rem",
                 cursor: "pointer",
               }}
-            />
-            Enable Obstacles
-          </label>
+            >
+              <input
+                type="checkbox"
+                checked={obstaclesEnabled}
+                onChange={(e) => setObstaclesEnabled(e.target.checked)}
+                style={{
+                  width: "20px",
+                  height: "20px",
+                  cursor: "pointer",
+                }}
+              />
+              Enable Obstacles (Phase 3)
+            </label>
+          </>
         )}
 
-        {!isPlaying ? (
-          <button
-            onClick={handleStartGame}
-            style={{
-              padding: "1rem 2rem",
-              fontSize: "1.2rem",
-              backgroundColor: "#4CAF50",
-              color: "white",
-              border: "none",
-              borderRadius: "8px",
-              cursor: "pointer",
-              fontWeight: "bold",
-            }}
-          >
-            Start Game
-          </button>
-        ) : (
-          <button
-            onClick={handleStopGame}
-            style={{
-              padding: "1rem 2rem",
-              fontSize: "1.2rem",
-              backgroundColor: "#f44336",
-              color: "white",
-              border: "none",
-              borderRadius: "8px",
-              cursor: "pointer",
-              fontWeight: "bold",
-            }}
-          >
-            Stop Game
-          </button>
-        )}
+        <div style={{ display: "flex", gap: "1rem" }}>
+          {!isPlaying ? (
+            <button
+              onClick={handleStartGame}
+              style={{
+                padding: "1rem 2rem",
+                fontSize: "1.2rem",
+                backgroundColor: "#4CAF50",
+                color: "white",
+                border: "none",
+                borderRadius: "8px",
+                cursor: "pointer",
+                fontWeight: "bold",
+              }}
+            >
+              Start Game
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={handlePauseResume}
+                style={{
+                  padding: "1rem 2rem",
+                  fontSize: "1.2rem",
+                  backgroundColor: "#FF9800",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "8px",
+                  cursor: "pointer",
+                  fontWeight: "bold",
+                }}
+              >
+                {gameLoopRef.current?.getIsPaused() ? "Resume" : "Pause"} (ESC)
+              </button>
+              <button
+                onClick={handleStopGame}
+                style={{
+                  padding: "1rem 2rem",
+                  fontSize: "1.2rem",
+                  backgroundColor: "#f44336",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "8px",
+                  cursor: "pointer",
+                  fontWeight: "bold",
+                }}
+              >
+                End Session
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       <div
@@ -316,7 +460,10 @@ const GameCanvas = ({ onGameEnd }) => {
           <li>⚡ Move your wrists fast enough to register hits</li>
           <li>🔥 Build combos by hitting consecutive targets</li>
           <li>💯 Hit the center of targets for bonus points</li>
-          <li>⏰ Targets that reach the edge will reset your combo</li>
+          <li>⏰ Complete the session before time runs out</li>
+          <li>🚧 Dodge obstacles to keep your health</li>
+          <li>⏸️ Press ESC to pause/resume the game</li>
+          <li>📈 Difficulty increases as time progresses</li>
         </ul>
       </div>
     </div>

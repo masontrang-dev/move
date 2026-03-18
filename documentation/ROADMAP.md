@@ -62,17 +62,17 @@ Get the project scaffolded and environment working before writing any game code.
 
 ---
 
-## Phase 4 — Game Session Loop (Weeks 9–11)
+## Phase 4 — Game Session Loop (Weeks 9–11) ✅
 
 **Goal:** A complete game session with a start, escalating difficulty, and an end screen.
 
-- [ ] Build main menu (React)
-- [ ] Session timer (e.g. 3 minutes)
-- [ ] Difficulty escalator: spawn rate and speed increase over time
-- [ ] Combo multiplier (consecutive hits multiply score)
-- [ ] Game over screen with score summary
-- [ ] Pause / resume
-- [ ] Difficulty presets: Easy (nephew mode), Medium, Hard (workout mode)
+- [x] Build main menu (React)
+- [x] Session timer (e.g. 3 minutes)
+- [x] Difficulty escalator: spawn rate and speed increase over time
+- [x] Combo multiplier (consecutive hits multiply score)
+- [x] Game over screen with score summary
+- [x] Pause / resume
+- [x] Difficulty presets: Easy (nephew mode), Medium, Hard (workout mode)
 
 **Done when:** You can play a full session from menu to results screen.
 

@@ -1,17 +1,23 @@
 const TARGET_RADIUS = 80;
-const TARGET_SPEED = 300;
-const SPAWN_RATE = 1.0;
+const BASE_TARGET_SPEED = 300;
+const BASE_SPAWN_RATE = 1.0;
 
 class Spawner {
   constructor(canvasWidth, canvasHeight) {
     this.canvasWidth = canvasWidth;
     this.canvasHeight = canvasHeight;
     this.lastSpawnTime = 0;
-    this.spawnInterval = 1000 / SPAWN_RATE;
+    this.baseSpawnInterval = 1000 / BASE_SPAWN_RATE;
+    this.difficultyMultiplier = 1.0;
+  }
+
+  setDifficultyMultiplier(multiplier) {
+    this.difficultyMultiplier = multiplier;
   }
 
   shouldSpawn(currentTime) {
-    if (currentTime - this.lastSpawnTime >= this.spawnInterval) {
+    const adjustedInterval = this.baseSpawnInterval / this.difficultyMultiplier;
+    if (currentTime - this.lastSpawnTime >= adjustedInterval) {
       this.lastSpawnTime = currentTime;
       return true;
     }
@@ -20,32 +26,33 @@ class Spawner {
 
   createTarget() {
     const side = Math.floor(Math.random() * 4);
+    const speed = BASE_TARGET_SPEED * this.difficultyMultiplier;
     let x, y, vx, vy;
 
     switch (side) {
       case 0:
         x = Math.random() * this.canvasWidth;
         y = -TARGET_RADIUS;
-        vx = (Math.random() - 0.5) * TARGET_SPEED * 0.5;
-        vy = TARGET_SPEED;
+        vx = (Math.random() - 0.5) * speed * 0.5;
+        vy = speed;
         break;
       case 1:
         x = this.canvasWidth + TARGET_RADIUS;
         y = Math.random() * this.canvasHeight;
-        vx = -TARGET_SPEED;
-        vy = (Math.random() - 0.5) * TARGET_SPEED * 0.5;
+        vx = -speed;
+        vy = (Math.random() - 0.5) * speed * 0.5;
         break;
       case 2:
         x = Math.random() * this.canvasWidth;
         y = this.canvasHeight + TARGET_RADIUS;
-        vx = (Math.random() - 0.5) * TARGET_SPEED * 0.5;
-        vy = -TARGET_SPEED;
+        vx = (Math.random() - 0.5) * speed * 0.5;
+        vy = -speed;
         break;
       case 3:
         x = -TARGET_RADIUS;
         y = Math.random() * this.canvasHeight;
-        vx = TARGET_SPEED;
-        vy = (Math.random() - 0.5) * TARGET_SPEED * 0.5;
+        vx = speed;
+        vy = (Math.random() - 0.5) * speed * 0.5;
         break;
     }
 

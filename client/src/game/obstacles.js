@@ -4,8 +4,8 @@ const OBSTACLE_TYPES = {
   VERTICAL: "vertical",
 };
 
-const OBSTACLE_SPEED = 120;
-const OBSTACLE_SPAWN_RATE = 0.3;
+const BASE_OBSTACLE_SPEED = 120;
+const BASE_OBSTACLE_SPAWN_RATE = 0.3;
 const OBSTACLE_THICKNESS = 60;
 const WARNING_DISTANCE = 400;
 
@@ -15,11 +15,17 @@ class ObstacleManager {
     this.canvasHeight = canvasHeight;
     this.obstacles = [];
     this.lastSpawnTime = 0;
-    this.spawnInterval = 1000 / OBSTACLE_SPAWN_RATE;
+    this.baseSpawnInterval = 1000 / BASE_OBSTACLE_SPAWN_RATE;
+    this.difficultyMultiplier = 1.0;
+  }
+
+  setDifficultyMultiplier(multiplier) {
+    this.difficultyMultiplier = multiplier;
   }
 
   shouldSpawn(currentTime) {
-    if (currentTime - this.lastSpawnTime >= this.spawnInterval) {
+    const adjustedInterval = this.baseSpawnInterval / this.difficultyMultiplier;
+    if (currentTime - this.lastSpawnTime >= adjustedInterval) {
       this.lastSpawnTime = currentTime;
       return true;
     }
@@ -29,6 +35,7 @@ class ObstacleManager {
   createObstacle() {
     const types = Object.values(OBSTACLE_TYPES);
     const type = types[Math.floor(Math.random() * types.length)];
+    const speed = BASE_OBSTACLE_SPEED * this.difficultyMultiplier;
 
     let obstacle = {
       type,
@@ -48,7 +55,7 @@ class ObstacleManager {
         obstacle.x = xPosition;
         obstacle.height = OBSTACLE_THICKNESS;
         obstacle.vx = 0;
-        obstacle.vy = fromTop ? OBSTACLE_SPEED : -OBSTACLE_SPEED;
+        obstacle.vy = fromTop ? speed : -speed;
         obstacle.y = fromTop
           ? -OBSTACLE_THICKNESS
           : this.canvasHeight + OBSTACLE_THICKNESS;
@@ -64,7 +71,7 @@ class ObstacleManager {
         obstacle.x = xPositionLow;
         obstacle.height = OBSTACLE_THICKNESS;
         obstacle.vx = 0;
-        obstacle.vy = fromTopLow ? OBSTACLE_SPEED : -OBSTACLE_SPEED;
+        obstacle.vy = fromTopLow ? speed : -speed;
         obstacle.y = fromTopLow
           ? -OBSTACLE_THICKNESS
           : this.canvasHeight + OBSTACLE_THICKNESS;
@@ -80,7 +87,7 @@ class ObstacleManager {
         const yPosition = Math.random() * (this.canvasHeight - obstacle.height);
         obstacle.y = yPosition;
         obstacle.width = OBSTACLE_THICKNESS;
-        obstacle.vx = fromLeft ? OBSTACLE_SPEED : -OBSTACLE_SPEED;
+        obstacle.vx = fromLeft ? speed : -speed;
         obstacle.vy = 0;
         obstacle.x = fromLeft
           ? -OBSTACLE_THICKNESS
