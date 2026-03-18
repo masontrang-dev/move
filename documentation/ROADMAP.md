@@ -1,29 +1,29 @@
 # Body Motion Game — Feature Roadmap
 
-## Phase 0 — Setup (Week 1)
+## Phase 0 — Setup (Week 1) ✅
 
 Get the project scaffolded and environment working before writing any game code.
 
-- [ ] Create React app (Vite)
-- [ ] Set up Node + Express server
-- [ ] Connect MongoDB (local dev + Atlas for prod)
-- [ ] Basic JWT auth (register, login, protected route)
-- [ ] Deploy skeleton app to Vercel (frontend) + Railway or Render (backend)
-- [ ] Set up GitHub repo with main/dev branches
+- [x] Create React app (Vite)
+- [x] Set up Node + Express server
+- [x] Connect MongoDB (local dev + Atlas for prod)
+- [x] Basic JWT auth (register, login, protected route)
+- [x] Deploy skeleton app to Vercel (frontend) + Railway or Render (backend)
+- [x] Set up GitHub repo with main/dev branches
 
 ---
 
-## Phase 1 — Vision Proof of Concept (Weeks 2–3)
+## Phase 1 — Vision Proof of Concept (Weeks 2–3) ✅
 
 **Goal:** See your skeleton on screen. Nothing else. This phase is purely about proving the pipeline works and getting comfortable with MoveNet.
 
-- [ ] Initialize MoveNet in the browser (TensorFlow.js)
-- [ ] Access webcam via MediaDevices API
-- [ ] Run inference and log raw keypoints to console
-- [ ] Draw skeleton overlay on a `<canvas>` over the video feed
-- [ ] Handle mirroring (camera is a mirror — flip x coordinates)
-- [ ] Add confidence filtering (hide keypoints below threshold)
-- [ ] Log wrist velocity frame-over-frame
+- [x] Initialize MoveNet in the browser (TensorFlow.js)
+- [x] Access webcam via MediaDevices API
+- [x] Run inference and log raw keypoints to console
+- [x] Draw skeleton overlay on a `<canvas>` over the video feed
+- [x] Handle mirroring (camera is a mirror — flip x coordinates)
+- [x] Add confidence filtering (hide keypoints below threshold)
+- [x] Log wrist velocity frame-over-frame
 
 **Done when:** You can see your skeleton moving smoothly on screen.
 
@@ -121,13 +121,13 @@ Get the project scaffolded and environment working before writing any game code.
 
 ## Risks and Mitigation
 
-| Risk | Mitigation |
-|---|---|
-| MoveNet latency (~100–200ms) makes hits feel laggy | Use predictive hit detection; trigger visual feedback immediately, confirm score after |
-| Poor lighting / small rooms break pose detection | Build an onboarding setup screen that checks lighting and body visibility before starting |
-| Game feels unfair on miss/dodge fail | Generous hit windows early, tighten with difficulty; always show the player what they missed |
-| Scope creep — building too many features before validating fun | Strictly finish Phase 2 before adding anything. One great mechanic beats five mediocre ones |
-| Backend complexity distracts from the game | Phase 5 is intentionally late — build and test the game in guest/local mode first |
+| Risk                                                           | Mitigation                                                                                   |
+| -------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| MoveNet latency (~100–200ms) makes hits feel laggy             | Use predictive hit detection; trigger visual feedback immediately, confirm score after       |
+| Poor lighting / small rooms break pose detection               | Build an onboarding setup screen that checks lighting and body visibility before starting    |
+| Game feels unfair on miss/dodge fail                           | Generous hit windows early, tighten with difficulty; always show the player what they missed |
+| Scope creep — building too many features before validating fun | Strictly finish Phase 2 before adding anything. One great mechanic beats five mediocre ones  |
+| Backend complexity distracts from the game                     | Phase 5 is intentionally late — build and test the game in guest/local mode first            |
 
 ---
 

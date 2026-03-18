@@ -10,11 +10,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4",
+    "@mediapipe/pose": "^0.5.1675469404",
+    "@tensorflow-models/pose-detection": "^2.1.0",
+    "@tensorflow/tfjs-backend-webgl": "^4.11.0",
+    "@tensorflow/tfjs-core": "^4.11.0",
     "axios": "^1.6.0",
-    "@tensorflow/tfjs": "^4.11.0",
-    "@tensorflow-models/pose-detection": "^2.1.0"
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
